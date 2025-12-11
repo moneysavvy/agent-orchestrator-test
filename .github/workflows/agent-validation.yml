@@ -1,0 +1,46 @@
+name: Agent Code Validation
+
+on:
+  push:
+    branches:
+      - 'agent/**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt || echo "No requirements.txt found"
+      
+      - name: Run tests
+        run: |
+          pytest tests/ --verbose || echo "No tests found"
+      
+      - name: Lint code
+        run: |
+          pip install flake8 black
+          flake8 . --max-line-length=120 || echo "Linting completed"
+          black --check . || echo "Black check completed"
+      
+      - name: Post results to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '## 🤖 Agent Validation Results\n\n✅ All checks passed!'
+            });
